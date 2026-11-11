@@ -11,7 +11,7 @@ services:
       MYSQL_PASSWORD: receituario_password
       MYSQL_ROOT_PASSWORD: root_secure_password
     ports:
-      - "127.0.0.1:3306:3306"
+      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -29,7 +29,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DJANGO_SECRET_KEY: "local-development-only-change-before-deploy"
+      DJANGO_SECRET_KEY: "prod-secret-key-receituario-turma-2025"
       DJANGO_DEBUG: "False"
       DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
       DB_ENGINE: "django.db.backends.mysql"
@@ -43,19 +43,21 @@ services:
       JWT_COOKIE_SECURE: "False"
       JWT_COOKIE_SAMESITE: "Lax"
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile.frontend
-      args:
-        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
-        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: receituario_frontend
     restart: always
+    depends_on:
+      - backend
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: "http://localhost:8000/api"
     ports:
-      - "127.0.0.1:3000:3000"
+      - "3000:3000"
 
 volumes:
   mysql_data:

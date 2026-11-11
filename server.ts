@@ -2,11 +2,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
-import { fileURLToPath } from 'node:url';
 
 const app = express();
 const PORT = 3000;
-const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -767,19 +765,20 @@ app.post('/api/admin/users/:id/reset-password', (req: Request, res: Response) =>
 
 // Setup Vite middlewares for front-end rendering
 async function startServer() {
+  const rootDir = process.cwd();
   const isProd = process.env.NODE_ENV === 'production';
   if (!isProd) {
     const vite = await createViteServer({
-      root: path.resolve(projectRoot, 'frontend'),
+      root: path.resolve(rootDir, 'frontend'),
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const frontendDist = path.resolve(projectRoot, 'frontend', 'dist');
-    app.use(express.static(frontendDist));
+    const distPath = path.resolve(rootDir, 'dist');
+    app.use(express.static(distPath));
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(frontendDist, 'index.html'));
+      res.sendFile(path.resolve(distPath, 'index.html'));
     });
   }
 

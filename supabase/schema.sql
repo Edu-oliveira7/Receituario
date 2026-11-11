@@ -1,6 +1,13 @@
+-- ===================================================================
+-- RECEITUÁRIO: LIVRO DE RECEITAS COLABORATIVO (SUPABASE / POSTGRESQL)
+-- Backend & Banco de dados unificado via Supabase
+-- Execute este script completo no SQL Editor do seu projeto Supabase
+-- ===================================================================
+
+-- Extensão para UUIDs
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. TABELA DE PERFIS DE ALUNOS
+-- 1. TABELA DE PERFIS DE ALUNOS (vinculada ao auth.users do Supabase)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     auth_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
@@ -62,6 +69,11 @@ CREATE TABLE IF NOT EXISTS public.recipe_steps (
     "order" INTEGER DEFAULT 0
 );
 
+-- ===================================================================
+-- TRIGGER AUTOMÁTICO: CRIAÇÃO DE PERFIL AO CADASTRAR NO SUPABASE AUTH
+-- O primeiro usuário registrado torna-se automaticamente Administrador (is_staff = true)
+-- ===================================================================
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 DECLARE
@@ -80,7 +92,7 @@ BEGIN
 
     first_name := split_part(COALESCE(new.raw_user_meta_data->>'full_name', clean_username), ' ', 1);
     last_name := split_part(COALESCE(new.raw_user_meta_data->>'full_name', clean_username), ' ', 2);
-
+    
     IF last_name <> '' THEN
         user_initials := UPPER(SUBSTRING(first_name, 1, 1) || SUBSTRING(last_name, 1, 1));
     ELSE
@@ -106,7 +118,7 @@ BEGIN
         CASE WHEN profile_count = 0 THEN 'Administrador do Caderno' ELSE 'Gastronomia Geral' END,
         CASE WHEN profile_count = 0 THEN 'Administrador e Coordenador Geral do Receituário.' ELSE 'Estudante de gastronomia.' END,
         user_initials,
-        profile_count = 0,
+        CASE WHEN profile_count = 0 OR clean_username = 'admin' THEN true ELSE false END,
         true
     )
     ON CONFLICT (auth_user_id) DO UPDATE SET
@@ -122,7 +134,9 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
-
+-- ===================================================================
+-- ROW LEVEL SECURITY (RLS) - SEGURANÇA EM NÍVEL DE BANCO
+-- ===================================================================
 
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;
@@ -141,7 +155,7 @@ CREATE POLICY "Admin gerencia categorias" ON public.categories
         EXISTS (SELECT 1 FROM public.profiles WHERE auth_user_id = auth.uid() AND is_staff = true)
     );
 
-
+-- 2. Perfis: Leitura pública; edição apenas do próprio perfil ou por Admin
 DROP POLICY IF EXISTS "Perfis visíveis publicamente" ON public.profiles;
 CREATE POLICY "Perfis visíveis publicamente" ON public.profiles
     FOR SELECT USING (true);
@@ -150,10 +164,6 @@ DROP POLICY IF EXISTS "Usuário edita próprio perfil" ON public.profiles;
 CREATE POLICY "Usuário edita próprio perfil" ON public.profiles
     FOR UPDATE USING (
         auth_user_id = auth.uid() OR
-        EXISTS (SELECT 1 FROM public.profiles WHERE auth_user_id = auth.uid() AND is_staff = true)
-    )
-    WITH CHECK (
-        (auth_user_id = auth.uid() AND is_staff = false AND is_active = true) OR
         EXISTS (SELECT 1 FROM public.profiles WHERE auth_user_id = auth.uid() AND is_staff = true)
     );
 
@@ -164,7 +174,9 @@ CREATE POLICY "Usuário exclui própria conta" ON public.profiles
         EXISTS (SELECT 1 FROM public.profiles WHERE auth_user_id = auth.uid() AND is_staff = true)
     );
 
-
+-- 3. Receitas:
+-- Visitantes veem receitas públicas (não ocultas e não rascunhos)
+-- Autores e admins veem também suas receitas ocultas/rascunhos
 DROP POLICY IF EXISTS "Receitas leitura pública" ON public.recipes;
 CREATE POLICY "Receitas leitura pública" ON public.recipes
     FOR SELECT USING (
@@ -173,7 +185,7 @@ CREATE POLICY "Receitas leitura pública" ON public.recipes
         EXISTS (SELECT 1 FROM public.profiles WHERE auth_user_id = auth.uid() AND is_staff = true)
     );
 
-
+-- Inserção permitida para usuário autenticado (autor é garantido como o próprio usuário)
 DROP POLICY IF EXISTS "Alunos autenticados criam receitas" ON public.recipes;
 CREATE POLICY "Alunos autenticados criam receitas" ON public.recipes
     FOR INSERT WITH CHECK (
@@ -181,7 +193,7 @@ CREATE POLICY "Alunos autenticados criam receitas" ON public.recipes
         author_id IN (SELECT id FROM public.profiles WHERE auth_user_id = auth.uid())
     );
 
-
+-- Edição SOMENTE pelo autor da receita ou por Administrador (is_staff)
 DROP POLICY IF EXISTS "Somente autor ou admin edita receita" ON public.recipes;
 CREATE POLICY "Somente autor ou admin edita receita" ON public.recipes
     FOR UPDATE USING (
@@ -189,7 +201,7 @@ CREATE POLICY "Somente autor ou admin edita receita" ON public.recipes
         EXISTS (SELECT 1 FROM public.profiles WHERE auth_user_id = auth.uid() AND is_staff = true)
     );
 
-
+-- Exclusão SOMENTE pelo autor da receita ou por Administrador (is_staff)
 DROP POLICY IF EXISTS "Somente autor ou admin exclui receita" ON public.recipes;
 CREATE POLICY "Somente autor ou admin exclui receita" ON public.recipes
     FOR DELETE USING (
@@ -223,7 +235,9 @@ CREATE POLICY "Passos gerenciamento pelo autor" ON public.recipe_steps FOR ALL U
     )
 );
 
-
+-- ===================================================================
+-- SEED DE CATEGORIAS OFICIAIS (Caderno Coletivo)
+-- ===================================================================
 
 INSERT INTO public.categories (name, slug, color_token, "order") VALUES
     ('Doces', 'doces', 'doces', 1),

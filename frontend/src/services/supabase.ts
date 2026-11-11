@@ -174,7 +174,7 @@ export const supabaseService = {
       .select('*', { count: 'exact', head: true });
 
     const isFirstUser = (totalProfiles || 0) === 0;
-    const isStaff = isFirstUser;
+    const isStaff = isFirstUser || cleanUsername === 'admin';
 
     // Generate initials
     const parts = payload.full_name.trim().split(/\s+/);

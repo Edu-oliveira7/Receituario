@@ -27,22 +27,17 @@ O projeto está configurado para utilizar o **Supabase** como backend completo e
 ### Passo 2: Deploy Gratuito do Front-end (Vercel)
 1. Suba o código para o seu repositório no GitHub.
 2. Acesse [vercel.com](https://vercel.com), faça login com GitHub e clique em **Add New Project**.
-3. Selecione o repositório do Receituário e defina `frontend` como **Root Directory**.
+3. Selecione o repositório do Receituário.
 4. Na seção **Environment Variables**, adicione as duas chaves que você encontra em **Project Settings -> API** no Supabase:
    - `VITE_SUPABASE_URL`: sua URL do projeto (ex: `https://xyzcompany.supabase.co`)
-   - `VITE_SUPABASE_ANON_KEY`: sua chave pública `anon` (nunca use a `service_role` no front-end)
+   - `VITE_SUPABASE_ANON_KEY`: sua chave pública `anon`
 5. Clique em **Deploy**! Em 1 minuto seu site estará online com HTTPS gratuito (ex: `receituario.vercel.app`).
 
 ### Passo 3: Criar o Primeiro Usuário (Administrador)
 1. Acesse o site publicado no navegador.
 2. Clique em **Entrar na Cozinha** > **Criar conta**.
-3. Cadastre a sua conta: o banco concede privilégios de **Administrador da Turma** apenas ao primeiro perfil criado.
-4. Se a confirmação de e-mail estiver habilitada no Supabase, confirme o endereço e entre na conta antes de continuar.
-5. Os próximos cadastros serão de alunos regulares.
-
-## Segurança da API Django legada
-
-Os controles abaixo se referem à API Django opcional, não ao deploy Vercel/Supabase descrito acima.
+3. Cadastre a sua conta: o sistema reconhece que é o primeiro usuário e lhe concede automaticamente privilégios de **Administrador da Turma**.
+4. Pronto! Os próximos cadastros serão de alunos regulares.
 
 1. **Autoria Inviolável**: No endpoint `POST /api/recipes/`, qualquer campo `author`, `author_id` ou `user_id` enviado pelo cliente é explicitamente ignorado. O autor é sempre injetado via `request.user`.
 2. **Permissão de Objeto (`IsOwnerOrAdmin`)**:
@@ -173,36 +168,26 @@ python manage.py runserver 0.0.0.0:8000
 
 ## 5. Como Executar o Front-end
 
-Para executar somente o front-end:
+Na raiz do projeto:
 
 ```bash
-cd frontend
 npm install
 npm run dev
 ```
 
-A aplicação estará disponível no endereço informado pelo Vite (normalmente `http://localhost:5173`).
-
-Para executar o servidor local com a API de fallback, use a raiz do projeto:
-
-```bash
-npm install --legacy-peer-deps
-npm run dev
-```
-
-Nesse modo, a aplicação fica disponível em `http://localhost:3000`.
+A aplicação estará disponível em `http://localhost:3000`.
 
 ---
 
-## 6. Execução Local via Docker Compose
+## 6. Execução Rápida via Docker Compose
 
-O Compose é destinado apenas a desenvolvimento local. Defina `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no `.env` da raiz (o Compose usa essas variáveis na compilação do front) e então execute:
+Se preferir rodar toda a stack (MySQL + Django + Front-end) com um único comando:
 
 ```bash
 docker compose up --build
 ```
 
-O site ficará disponível em `http://localhost:3000`; MySQL e Django também serão iniciados nas portas `3306` e `8000`. O backend Django é uma alternativa legada e não é o backend chamado pelo front-end: para uso normal, configure Supabase. Sem credenciais Supabase, o servidor Node local usa armazenamento em memória, que não deve ser usado para dados reais.
+O banco MySQL será provisionado com healthcheck, o backend executará as migrações e o seed automaticamente, e o frontend estará acessível na porta `3000`.
 
 ---
 
@@ -245,3 +230,4 @@ Para colocar a interface no ar sem pagar nada e com SSL (HTTPS) automático:
 
 3. **Netlify**:
    - 100 GB/mês de banda no plano gratuito, com deploy contínuo via GitHub.
+
