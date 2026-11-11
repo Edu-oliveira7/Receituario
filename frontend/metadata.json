@@ -1,0 +1,6 @@
+{
+  "name": "Receituário — Livro de Receitas Colaborativo",
+  "description": "Caderno coletivo de receitas para turma de gastronomia com design Caderno Coletivo, controle de acesso e temas por categoria.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
